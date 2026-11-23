@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VapeControl Pro | Gestión Compartida</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#0b0f19',
+                            card: '#111827',
+                            cardHover: '#161f33',
+                            border: '#1f2937',
+                            neon: '#00FF66',
+                            neonDim: 'rgba(0, 255, 102, 0.12)',
+                            cyan: '#06b6d4',
+                            cyanDim: 'rgba(6, 182, 212, 0.12)',
+                            purple: '#a855f7',
+                            purpleDim: 'rgba(168, 85, 247, 0.12)',
+                            danger: '#ef4444',
+                            warning: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        .neon-glow {
+            box-shadow: 0 0 18px rgba(0, 255, 102, 0.25);
+        }
+        .neon-text-glow {
+            text-shadow: 0 0 12px rgba(0, 255, 102, 0.45);
+        }
+        .cyan-glow {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+        }
+        .purple-glow {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-animate {
+            animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-cyber-neon selection:text-black">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-30 bg-cyber-bg/90 backdrop-blur-md border-b border-cyber-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyber-neonDim border border-cyber-neon/40 flex items-center justify-center text-cyber-neon neon-glow">
+                    <i data-lucide="wind" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg sm:text-xl tracking-tight text-white flex items-center gap-2">
+                        VAPE<span class="text-cyber-neon neon-text-glow">CONTROL</span>
+                        <span class="hidden sm:inline-block text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyber-card border border-cyber-border text-gray-400">50/50 Duo</span>
+                    </h1>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <span id="sync-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                        <span id="sync-status-text">Conectando nube...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button type="button" onclick="openPartnerNamesModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyber-card hover:bg-cyber-cardHover border border-cyber-border text-xs sm:text-sm font-semibold text-gray-200 transition active:scale-95" title="Editar nombres de los socios">
+                    <i data-lucide="users" class="w-4 h-4 text-cyber-cyan"></i>
+                    <span class="hidden sm:inline">Editar Nombres</span>
+                </button>
+
+                <button type="button" onclick="openCorteModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyber-card hover:bg-cyber-cardHover border border-cyber-border text-xs sm:text-sm font-semibold text-gray-200 transition active:scale-95">
+                    <i data-lucide="scale" class="w-4 h-4 text-cyber-neon"></i>
+                    <span class="hidden md:inline">Corte / Reparto</span>
+                    <span class="md:hidden">Corte</span>
+                </button>
+
+                <button type="button" onclick="openDataModal()" class="p-2 rounded-xl bg-cyber-card hover:bg-cyber-cardHover border border-cyber-border text-gray-400 hover:text-white transition active:scale-95" title="Respaldo y Sincronización">
+                    <i data-lucide="database" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+
+                <button type="button" onclick="openSaleModal()" class="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-cyber-neon hover:bg-[#00e65c] text-black font-bold text-xs sm:text-sm shadow-lg neon-glow transition active:scale-95">
+                    <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
+                    <span>Registrar Venta</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- KPI Dashboard Grid -->
+        <section aria-label="Indicadores Clave">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 sm:p-5 relative overflow-hidden group">
+                    <div class="absolute -right-4 -top-4 w-20 h-20 bg-cyber-neon/10 rounded-full blur-xl group-hover:bg-cyber-neon/20 transition"></div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Ganancia Neta</span>
+                        <div class="p-1.5 rounded-lg bg-cyber-neonDim text-cyber-neon">
+                            <i data-lucide="trending-up" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-net-profit" class="text-2xl sm:text-3xl font-extrabold text-cyber-neon font-mono tabular-nums neon-text-glow">$0</div>
+                    <p id="kpi-total-sales" class="text-xs text-gray-400 mt-1 tabular-nums">Ventas Totales: $0</p>
+                </div>
+
+                <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 sm:p-5 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Dinero en Caja</span>
+                        <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                            <i data-lucide="wallet" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-cash-collected" class="text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">$0</div>
+                    <p id="kpi-cash-breakdown" class="text-xs text-gray-400 mt-1 tabular-nums">Efec: $0 • Transf: $0</p>
+                </div>
+
+                <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 sm:p-5 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Fiados (Por Cobrar)</span>
+                        <div class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-pending-debt" class="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono tabular-nums">$0</div>
+                    <p id="kpi-debt-count" class="text-xs text-gray-400 mt-1">0 clientes pendientes</p>
+                </div>
+
+                <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 sm:p-5 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Capital en Stock</span>
+                        <div class="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+                            <i data-lucide="package" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-active-stock-value" class="text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">$0</div>
+                    <p id="kpi-stock-units" class="text-xs text-gray-400 mt-1 tabular-nums">0 vapes disponibles</p>
+                </div>
+            </div>
+
+            <!-- Partner Wallets Row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                <div class="bg-cyber-card border border-cyber-cyan/30 rounded-2xl p-4 flex items-center justify-between cyan-glow">
+                    <div class="flex items-center gap-3">
+                        <div id="yo-initials-badge" class="w-11 h-11 rounded-xl bg-cyber-cyanDim border border-cyber-cyan/40 flex items-center justify-center text-cyber-cyan font-bold text-lg uppercase shrink-0">
+                            S1
+                        </div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 id="yo-box-title" class="font-bold text-white text-sm sm:text-base">Caja de Socio 1</h3>
+                                <button type="button" onclick="openPartnerNamesModal('YO')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyber-cyanDim/80 hover:bg-cyber-cyan/25 border border-cyber-cyan/40 text-cyber-cyan text-[11px] font-bold transition active:scale-95" title="Cambiar nombre del Socio 1">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i>
+                                    <span>Cambiar nombre</span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">
+                                Inv. aportada: <span id="yo-invested-display" class="text-gray-200 font-mono">$0</span>
+                                <button type="button" onclick="openInvestmentModal()" class="ml-1.5 text-cyber-cyan hover:underline font-medium">Editar</button>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div id="yo-cash-hand" class="text-xl sm:text-2xl font-extrabold text-cyber-cyan font-mono tabular-nums">$0</div>
+                        <span id="yo-sales-count" class="text-[11px] text-gray-400">0 ventas cobradas</span>
+                    </div>
+                </div>
+
+                <div class="bg-cyber-card border border-cyber-purple/30 rounded-2xl p-4 flex items-center justify-between purple-glow">
+                    <div class="flex items-center gap-3">
+                        <div id="compa-initials-badge" class="w-11 h-11 rounded-xl bg-cyber-purpleDim border border-cyber-purple/40 flex items-center justify-center text-cyber-purple font-bold text-lg uppercase shrink-0">
+                            S2
+                        </div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 id="compa-box-title" class="font-bold text-white text-sm sm:text-base">Caja de Socio 2</h3>
+                                <button type="button" onclick="openPartnerNamesModal('COMPA')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyber-purpleDim/80 hover:bg-cyber-purple/25 border border-cyber-purple/40 text-cyber-purple text-[11px] font-bold transition active:scale-95" title="Cambiar nombre del Socio 2">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i>
+                                    <span>Cambiar nombre</span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">
+                                Inv. aportada: <span id="compa-invested-display" class="text-gray-200 font-mono">$0</span>
+                                <button type="button" onclick="openInvestmentModal()" class="ml-1.5 text-cyber-purple hover:underline font-medium">Editar</button>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div id="compa-cash-hand" class="text-xl sm:text-2xl font-extrabold text-cyber-purple font-mono tabular-nums">$0</div>
+                        <span id="compa-sales-count" class="text-[11px] text-gray-400">0 ventas cobradas</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <div class="flex items-center justify-between border-b border-cyber-border overflow-x-auto">
+            <nav class="flex space-x-2 sm:space-x-6" aria-label="Secciones">
+                <button type="button" onclick="switchTab('inventory')" id="tab-inventory" class="tab-btn active-tab py-3 px-2 border-b-2 border-cyber-neon text-cyber-neon font-bold text-sm flex items-center gap-2 whitespace-nowrap transition">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                    Inventario de Vapes
+                    <span id="badge-inventory-count" class="px-2 py-0.5 text-xs rounded-full bg-cyber-neonDim text-cyber-neon font-mono">0</span>
+                </button>
+                <button type="button" onclick="switchTab('movements')" id="tab-movements" class="tab-btn py-3 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap transition">
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                    Ventas y Fiados
+                    <span id="badge-debts-count" class="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-400 font-mono hidden">0 fiados</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- TAB 1: INVENTORY CATALOG -->
+        <section id="section-inventory" class="space-y-4">
+            <div class="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
+                <div class="flex flex-1 gap-2 flex-col sm:flex-row">
+                    <div class="relative flex-1 max-w-md">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="search-inventory" oninput="renderInventory()" placeholder="Buscar marca, sabor o puffs..." class="w-full pl-10 pr-4 py-2.5 bg-cyber-card border border-cyber-border rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyber-neon transition">
+                    </div>
+                    <select id="filter-brand" onchange="renderInventory()" class="px-3.5 py-2.5 bg-cyber-card border border-cyber-border rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyber-neon">
+                        <option value="ALL">Todas las marcas</option>
+                    </select>
+                    <select id="filter-stock" onchange="renderInventory()" class="px-3.5 py-2.5 bg-cyber-card border border-cyber-border rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyber-neon">
+                        <option value="ALL">Todo el stock</option>
+                        <option value="AVAILABLE">Disponibles (&gt;0)</option>
+                        <option value="LOW">Stock Bajo (&le;2)</option>
+                        <option value="OUT">Agotados (0)</option>
+                    </select>
+                </div>
+
+                <button type="button" onclick="openProductModal()" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyber-card hover:bg-cyber-cardHover border border-cyber-neon/50 text-cyber-neon font-bold text-sm transition active:scale-95">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Nuevo Vape</span>
+                </button>
+            </div>
+
+            <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+
+            <div id="inventory-empty" class="hidden bg-cyber-card border border-cyber-border rounded-2xl p-10 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-cyber-neonDim text-cyber-neon flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="package-open" class="w-7 h-7"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">No hay vapes en esta vista</h3>
+                <p class="text-sm text-gray-400 max-w-md mx-auto mt-1">Agrega tu primer modelo de vape al inventario o ajusta los filtros de búsqueda.</p>
+                <button type="button" onclick="openProductModal()" class="mt-4 px-4 py-2 rounded-xl bg-cyber-neon text-black font-bold text-sm">
+                    + Agregar Primer Vape
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 2: MOVEMENTS & DEBTS (FIADOS) -->
+        <section id="section-movements" class="hidden space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 bg-cyber-card p-1 rounded-xl border border-cyber-border">
+                    <button type="button" onclick="setMovementFilter('ALL')" id="mov-filter-ALL" class="mov-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-cyber-neon text-black transition">
+                        Todas
+                    </button>
+                    <button type="button" onclick="setMovementFilter('PAID')" id="mov-filter-PAID" class="mov-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition">
+                        Pagadas
+                    </button>
+                    <button type="button" onclick="setMovementFilter('FIADO')" id="mov-filter-FIADO" class="mov-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition flex items-center gap-1.5">
+                        <span>Fiados Pendientes</span>
+                        <span id="pill-debt-counter" class="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 font-mono text-[10px]">0</span>
+                    </button>
+                </div>
+
+                <div class="relative w-full sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="search-movements" oninput="renderMovements()" placeholder="Buscar cliente o vape..." class="w-full pl-9 pr-3 py-2 bg-cyber-card border border-cyber-border rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyber-neon">
+                </div>
+            </div>
+
+            <div id="movements-list" class="space-y-3"></div>
+
+            <div id="movements-empty" class="hidden bg-cyber-card border border-cyber-border rounded-2xl p-10 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-gray-800 text-gray-400 flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="receipt" class="w-7 h-7"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Sin movimientos registrados</h3>
+                <p class="text-sm text-gray-400 mt-1">Aquí aparecerán todas las ventas pagadas y los fiados pendientes por cobrar.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODALS -->
+    <!-- ===================================================================== -->
+
+    <!-- 1. MODAL: ADD / EDIT PRODUCT -->
+    <div id="modal-product" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-md w-full p-6 modal-animate shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 id="modal-product-title" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-cyber-neon"></i>
+                    Agregar Nuevo Vape
+                </h2>
+                <button type="button" onclick="closeModal('modal-product')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-product" onsubmit="handleSaveProduct(event)" class="mt-4 space-y-4">
+                <input type="hidden" id="prod-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Marca *</label>
+                        <input type="text" id="prod-brand" required list="brand-suggestions" placeholder="Ej. Waka, Geek Bar" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-neon">
+                        <datalist id="brand-suggestions">
+                            <option value="Waka">
+                            <option value="Geek Bar">
+                            <option value="Elfbar">
+                            <option value="Tyson 2.0">
+                            <option value="Lost Mary">
+                            <option value="Orion Bar">
+                            <option value="Fume">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Puffs / Modelo</label>
+                        <input type="text" id="prod-puffs" placeholder="Ej. 10,000 Puffs" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-neon">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Sabor *</label>
+                    <input type="text" id="prod-flavor" required placeholder="Ej. Watermelon Ice, Strawberry Kiwi" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-neon">
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Costo Compra ($) *</label>
+                        <input type="number" id="prod-cost" required min="0" step="any" placeholder="180" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-neon">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Precio Venta ($) *</label>
+                        <input type="number" id="prod-price" required min="0" step="any" placeholder="320" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-neon">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Stock *</label>
+                        <input type="number" id="prod-stock" required min="0" step="1" placeholder="5" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-neon">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-product')" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyber-neon hover:bg-[#00e65c] text-black font-bold text-sm neon-glow">Guardar Vape</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. MODAL: REGISTER SALE / FIADO -->
+    <div id="modal-sale" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-md w-full p-6 modal-animate shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5 text-cyber-neon"></i>
+                    Registrar Venta / Fiado
+                </h2>
+                <button type="button" onclick="closeModal('modal-sale')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-sale" onsubmit="handleRegisterSale(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Seleccionar Vape *</label>
+                    <select id="sale-product-id" required onchange="onSaleProductChange()" class="w-full px-3 py-2.5 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-neon">
+                        <option value="">-- Elige un vape con stock --</option>
+                    </select>
+                    <p id="sale-stock-hint" class="text-xs text-gray-400 mt-1"></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Cantidad *</label>
+                        <input type="number" id="sale-qty" required min="1" value="1" oninput="updateSaleSuggestedTotal()" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-neon">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Precio Total ($) *</label>
+                        <input type="number" id="sale-total-price" required min="0" step="any" oninput="updateSaleProfitPreview()" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono font-bold text-cyber-neon focus:outline-none focus:border-cyber-neon">
+                    </div>
+                </div>
+
+                <div id="sale-profit-box" class="px-3 py-2 rounded-xl bg-cyber-bg border border-cyber-border flex items-center justify-between text-xs">
+                    <span class="text-gray-400">Ganancia neta de esta venta:</span>
+                    <span id="sale-profit-preview" class="font-mono font-bold text-cyber-neon">$0</span>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-gray-400">¿Quién cobró / prestó? *</label>
+                        <button type="button" onclick="openPartnerNamesModal()" class="inline-flex items-center gap-1 text-[11px] font-bold text-cyber-neon hover:underline">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                            <span>Editar Nombres</span>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="sale-partner" value="YO" checked class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-cyan peer-checked:bg-cyber-cyanDim text-center transition">
+                                <span id="sale-yo-name" class="block font-bold text-sm text-white truncate">Socio 1</span>
+                                <span class="text-[11px] text-cyber-cyan">Suma a su caja</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="sale-partner" value="COMPA" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-purple peer-checked:bg-cyber-purpleDim text-center transition">
+                                <span id="sale-compa-name" class="block font-bold text-sm text-white truncate">Socio 2</span>
+                                <span class="text-[11px] text-cyber-purple">Suma a su caja</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Payment Method / Status -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">Estado / Método de Pago *</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="sale-payment" value="EFECTIVO" checked onchange="toggleCustomerField()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-neon peer-checked:bg-cyber-neonDim text-center transition">
+                                <span class="block font-bold text-xs text-white">Efectivo</span>
+                                <span class="text-[10px] text-emerald-400">Pagado</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="sale-payment" value="TRANSFERENCIA" onchange="toggleCustomerField()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-neon peer-checked:bg-cyber-neonDim text-center transition">
+                                <span class="block font-bold text-xs text-white">Transf.</span>
+                                <span class="text-[10px] text-emerald-400">Pagado</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="sale-payment" value="FIADO" onchange="toggleCustomerField()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-amber-400 peer-checked:bg-amber-500/15 text-center transition">
+                                <span class="block font-bold text-xs text-amber-400">Fiado</span>
+                                <span class="text-[10px] text-amber-300">Pendiente</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Customer Name (Required if Fiado, Optional otherwise) -->
+                <div id="sale-customer-wrapper">
+                    <label id="sale-customer-label" class="block text-xs font-semibold text-gray-400 mb-1">Nombre del Cliente (Opcional)</label>
+                    <input type="text" id="sale-customer" placeholder="Ej. Carlos / Primo de Juan" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-neon">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-sale')" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyber-neon hover:bg-[#00e65c] text-black font-bold text-sm neon-glow">Confirmar Venta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. MODAL: SETTLE FIADO (MARK AS PAID) -->
+    <div id="modal-settle-debt" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-sm w-full p-6 modal-animate shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 text-cyber-neon"></i>
+                    Cobrar Fiado
+                </h2>
+                <button type="button" onclick="closeModal('modal-settle-debt')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleSettleDebt(event)" class="mt-4 space-y-4">
+                <input type="hidden" id="settle-sale-id">
+                <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border">
+                    <p class="text-xs text-gray-400">Cliente deudor:</p>
+                    <p id="settle-customer-name" class="font-bold text-white text-base"></p>
+                    <p id="settle-amount-display" class="font-mono font-extrabold text-amber-400 text-lg mt-1"></p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">¿Quién recibió el dinero?</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="settle-partner" value="YO" checked class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-cyan peer-checked:bg-cyber-cyanDim text-center">
+                                <span id="settle-yo-name" class="font-bold text-xs text-white truncate block">Socio 1</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="settle-partner" value="COMPA" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-purple peer-checked:bg-cyber-purpleDim text-center">
+                                <span id="settle-compa-name" class="font-bold text-xs text-white truncate block">Socio 2</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">¿Cómo pagó?</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="settle-method" value="EFECTIVO" checked class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-neon peer-checked:bg-cyber-neonDim text-center">
+                                <span class="font-bold text-xs text-white">Efectivo</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="settle-method" value="TRANSFERENCIA" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-cyber-border bg-cyber-bg peer-checked:border-cyber-neon peer-checked:bg-cyber-neonDim text-center">
+                                <span class="font-bold text-xs text-white">Transferencia</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-settle-debt')" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyber-neon text-black font-bold text-sm neon-glow">Registrar Cobro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. MODAL: CORTE DE CAJA / REPARTO 50/50 -->
+    <div id="modal-corte" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-lg w-full p-6 modal-animate shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="scale" class="w-5 h-5 text-cyber-neon"></i>
+                    Corte de Caja y Reparto 50/50
+                </h2>
+                <button type="button" onclick="closeModal('modal-corte')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="mt-4 space-y-4">
+                <div class="grid grid-cols-3 gap-2.5 text-center">
+                    <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <span class="block text-[11px] text-gray-400">Total Cobrado</span>
+                        <span id="corte-total-collected" class="font-mono font-bold text-base sm:text-lg text-white">$0</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <span class="block text-[11px] text-gray-400">Costo Vendido</span>
+                        <span id="corte-cost-recovered" class="font-mono font-bold text-base sm:text-lg text-blue-400">$0</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-cyber-neonDim border border-cyber-neon/40">
+                        <span class="block text-[11px] text-cyber-neon">Ganancia Cobrada</span>
+                        <span id="corte-net-profit" class="font-mono font-extrabold text-base sm:text-lg text-cyber-neon">$0</span>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border space-y-3 text-sm">
+                    <h3 class="font-bold text-gray-200 text-xs uppercase tracking-wider">Desglose por Socio (Solo dinero cobrado)</h3>
+
+                    <div class="flex justify-between items-center py-1.5 border-b border-cyber-border/60">
+                        <span class="text-gray-400">Ganancia libre para cada socio (50%):</span>
+                        <span id="corte-half-profit" class="font-mono font-bold text-cyber-neon">$0</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div class="p-3 rounded-xl bg-cyber-card border border-cyber-cyan/30 space-y-1">
+                            <span id="corte-yo-label" class="text-xs font-bold text-cyber-cyan block truncate">SOCIO 1</span>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-400">Tiene en caja:</span>
+                                <span id="corte-yo-has" class="font-mono text-white">$0</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-400">Inv. aportada:</span>
+                                <span id="corte-yo-inv" class="font-mono text-gray-300">$0</span>
+                            </div>
+                            <div class="flex justify-between text-xs pt-1 border-t border-cyber-border">
+                                <span class="text-gray-300 font-semibold">Le corresponde:</span>
+                                <span id="corte-yo-target" class="font-mono font-bold text-cyber-cyan">$0</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-cyber-card border border-cyber-purple/30 space-y-1">
+                            <span id="corte-compa-label" class="text-xs font-bold text-cyber-purple block truncate">SOCIO 2</span>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-400">Tiene en caja:</span>
+                                <span id="corte-compa-has" class="font-mono text-white">$0</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-400">Inv. aportada:</span>
+                                <span id="corte-compa-inv" class="font-mono text-gray-300">$0</span>
+                            </div>
+                            <div class="flex justify-between text-xs pt-1 border-t border-cyber-border">
+                                <span class="text-gray-300 font-semibold">Le corresponde:</span>
+                                <span id="corte-compa-target" class="font-mono font-bold text-cyber-purple">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="corte-verdict-box" class="p-4 rounded-xl bg-cyber-neonDim border border-cyber-neon/50 text-center">
+                    <span class="text-[11px] uppercase tracking-wider font-bold text-cyber-neon block mb-1">Ajuste para quedar tablas</span>
+                    <p id="corte-verdict-text" class="text-base sm:text-lg font-extrabold text-white">Calculando...</p>
+                    <p id="corte-verdict-sub" class="text-xs text-gray-300 mt-1"></p>
+                </div>
+
+                <div class="flex justify-between items-center pt-2">
+                    <button type="button" onclick="openInvestmentModal()" class="text-xs text-gray-400 hover:text-white underline">Ajustar inversión inicial</button>
+                    <button type="button" onclick="closeModal('modal-corte')" class="px-5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL: PARTNER CAPITAL INVESTMENT -->
+    <div id="modal-investment" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-sm w-full p-6 modal-animate shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="coins" class="w-5 h-5 text-cyber-neon"></i>
+                    Inversión por Socio
+                </h2>
+                <button type="button" onclick="closeModal('modal-investment')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">Indica cuánto dinero puso cada quien de su bolsa para comprar mercancía. Esto se usa en el Corte de Caja para recuperar inversión antes de repartir ganancias.</p>
+
+            <form onsubmit="handleSaveInvestment(event)" class="mt-4 space-y-4">
+                <div>
+                    <label id="label-inv-yo" class="block text-xs font-semibold text-cyber-cyan mb-1">Inversión aportada por Socio 1 ($)</label>
+                    <input type="number" id="input-yo-invested" required min="0" step="any" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-cyan">
+                </div>
+                <div>
+                    <label id="label-inv-compa" class="block text-xs font-semibold text-cyber-purple mb-1">Inversión aportada por Socio 2 ($)</label>
+                    <input type="number" id="input-compa-invested" required min="0" step="any" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyber-purple">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-investment')" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyber-neon text-black font-bold text-sm neon-glow">Guardar Aportes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5B. MODAL: EDIT PARTNER NAMES -->
+    <div id="modal-partner-names" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-sm w-full p-6 modal-animate shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-cyber-neon"></i>
+                    Nombres de los Socios
+                </h2>
+                <button type="button" onclick="closeModal('modal-partner-names')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">Personaliza cómo se muestran ambos socios en las cajas, ventas, fiados y corte de caja. Se sincroniza en tiempo real.</p>
+
+            <form onsubmit="handleSavePartnerNames(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-cyber-cyan mb-1">Nombre del Socio 1</label>
+                    <input type="text" id="input-yo-name" required maxlength="24" placeholder="Ej. Carlos" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-cyan">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-cyber-purple mb-1">Nombre del Socio 2</label>
+                    <input type="text" id="input-compa-name" required maxlength="24" placeholder="Ej. Luis" class="w-full px-3 py-2 bg-cyber-bg border border-cyber-border rounded-xl text-sm text-white focus:outline-none focus:border-cyber-purple">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-partner-names')" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyber-neon text-black font-bold text-sm neon-glow">Guardar Nombres</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. MODAL: BACKUP, EXPORT & RESET -->
+    <div id="modal-data" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-md w-full p-6 modal-animate shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-cyber-neon"></i>
+                    Respaldo y Sincronización
+                </h2>
+                <button type="button" onclick="closeModal('modal-data')" class="text-gray-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="mt-4 space-y-4">
+                <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border text-xs space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-400">Proyecto Supabase:</span>
+                        <span id="modal-sync-badge" class="font-bold text-cyber-neon">bfsivrwxvkkxdfkmnpfz</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-400">Tabla Sincronizada:</span>
+                        <span id="modal-room-id" class="font-mono text-gray-300">vape_data (payload)</span>
+                    </div>
+                </div>
+
+                <button type="button" onclick="pullStateFromCloud(true)" class="w-full py-2.5 px-4 rounded-xl bg-cyber-neon/15 hover:bg-cyber-neon/25 border border-cyber-neon/40 text-cyber-neon text-xs font-bold flex items-center justify-center gap-2 transition">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Forzar Sincronización Ahora
+                </button>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-gray-400">Exportar Respaldo</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button type="button" onclick="exportDataJSON()" class="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-cyber-bg hover:bg-gray-800 border border-cyber-border text-xs font-bold text-white transition">
+                            <i data-lucide="file-json" class="w-4 h-4 text-cyber-cyan"></i>
+                            Descargar JSON
+                        </button>
+                        <button type="button" onclick="exportSalesCSV()" class="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-cyber-bg hover:bg-gray-800 border border-cyber-border text-xs font-bold text-white transition">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-cyber-neon"></i>
+                            Ventas en CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-cyber-border">
+                    <label class="block text-xs font-semibold text-red-400 mb-2">Zona de Peligro</label>
+                    <button type="button" onclick="handleResetDatabase()" class="w-full py-2.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold transition">
+                        Reiniciar Todo el Negocio (Borrar Datos)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. MODAL: GENERIC CONFIRMATION -->
+    <div id="modal-confirm" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl max-w-sm w-full p-6 modal-animate shadow-2xl">
+            <h3 id="confirm-title" class="text-lg font-bold text-white">¿Confirmar acción?</h3>
+            <p id="confirm-message" class="text-sm text-gray-400 mt-2"></p>
+            <div class="mt-5 flex justify-end gap-2">
+                <button type="button" onclick="closeModal('modal-confirm')" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold">Cancelar</button>
+                <button type="button" id="confirm-yes-btn" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold">Sí, continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bfsivrwxvkkxdfkmnpfz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_uwiUqL2RM3WU6jK4NfJEpg__1i-irWP';
+        const TABLE_NAME = 'vape_data';
+        const LOCAL_STORAGE_KEY = 'vapecontrol_pro_full_v1';
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let cloudRowId = null;
+        let isApplyingRemote = false;
+
+        window.appState = {
+            products: [],
+            sales: [],
+            settings: {
+                yoName: 'Carlos',
+                compaName: 'Luis',
+                yoInvested: 0,
+                compaInvested: 0
+            },
+            currentTab: 'inventory',
+            movementFilter: 'ALL',
+            updatedAt: Date.now()
+        };
+
+        function formatMoney(amount) {
+            const num = Number(amount) || 0;
+            return '$' + num.toLocaleString('es-MX', {
+                minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function computePartnerInitials(name, fallback) {
+            const tokens = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (tokens.length >= 2) return (tokens[0][0] + tokens[1][0]).toUpperCase();
+            if (tokens.length === 1 && tokens[0].length >= 2) return tokens[0].slice(0, 2).toUpperCase();
+            if (tokens.length === 1 && tokens[0].length === 1) return tokens[0].toUpperCase();
+            return fallback;
+        }
+
+        function getPartnerNames() {
+            return {
+                yoName: (window.appState.settings?.yoName || '').trim() || 'Socio 1',
+                compaName: (window.appState.settings?.compaName || '').trim() || 'Socio 2'
+            };
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const borderMap = {
+                success: 'border-cyber-neon/60 text-white',
+                error: 'border-red-500/60 text-red-200',
+                info: 'border-cyber-cyan/60 text-cyan-100'
+            };
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-cyber-card shadow-xl text-xs sm:text-sm font-medium modal-animate ${borderMap[type] || borderMap.success}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function setSyncStatus(mode, label) {
+            const dot = document.getElementById('sync-dot');
+            const text = document.getElementById('sync-status-text');
+            if (!dot || !text) return;
+            text.textContent = label;
+            dot.className = 'w-2 h-2 rounded-full';
+            if (mode === 'online') dot.classList.add('bg-cyber-neon');
+            else if (mode === 'syncing') dot.classList.add('bg-yellow-400', 'animate-pulse');
+            else dot.classList.add('bg-red-500');
+        }
+
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.remove('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        }
+
+        function askConfirm(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            const yesBtn = document.getElementById('confirm-yes-btn');
+            yesBtn.onclick = async () => {
+                closeModal('modal-confirm');
+                await onConfirm();
+            };
+            openModal('modal-confirm');
+        }
+
+        function saveLocal() {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(window.appState));
+            } catch (_) {}
+        }
+
+        function loadLocal() {
+            try {
+                const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                window.appState = {
+                    products: Array.isArray(parsed.products) ? parsed.products : [],
+                    sales: Array.isArray(parsed.sales) ? parsed.sales : [],
+                    settings: {
+                        yoName: 'Carlos',
+                        compaName: 'Luis',
+                        yoInvested: 0,
+                        compaInvested: 0,
+                        ...(parsed.settings || {})
+                    },
+                    currentTab: parsed.currentTab || 'inventory',
+                    movementFilter: parsed.movementFilter || 'ALL',
+                    updatedAt: parsed.updatedAt || 0
+                };
+            } catch (_) {}
+        }
+
+        async function persistState(notify = false) {
+            window.appState.updatedAt = Date.now();
+            saveLocal();
+            renderAll();
+            if (isApplyingRemote) return;
+
+            setSyncStatus('syncing', 'Guardando en nube...');
+            try {
+                if (cloudRowId) {
+                    const { error } = await supabaseClient
+                        .from(TABLE_NAME)
+                        .update({ payload: window.appState })
+                        .eq('id', cloudRowId);
+                    if (error) throw error;
+                } else {
+                    const { data, error } = await supabaseClient
+                        .from(TABLE_NAME)
+                        .insert([{ payload: window.appState }])
+                        .select('id')
+                        .single();
+                    if (error) throw error;
+                    if (data && data.id) cloudRowId = data.id;
+                }
+                setSyncStatus('online', 'Sincronizado en tiempo real');
+                if (notify) showToast('Sincronizado con Supabase', 'success');
+            } catch (err) {
+                console.error(err);
+                setSyncStatus('error', 'Sin red (guardado local)');
+                if (notify) showToast('Error al sincronizar con Supabase', 'error');
+            }
+        }
+
+        async function pullStateFromCloud(notify = false) {
+            setSyncStatus('syncing', 'Sincronizando...');
+            try {
+                const { data, error } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .select('id, payload')
+                    .order('id', { ascending: false })
+                    .limit(1);
+                if (error) throw error;
+
+                if (data && data.length > 0 && data[0].payload) {
+                    cloudRowId = data[0].id;
+                    const p = data[0].payload;
+                    isApplyingRemote = true;
+                    window.appState = {
+                        ...window.appState,
+                        products: Array.isArray(p.products) ? p.products : [],
+                        sales: Array.isArray(p.sales) ? p.sales : [],
+                        settings: {
+                            yoName: 'Carlos',
+                            compaName: 'Luis',
+                            yoInvested: 0,
+                            compaInvested: 0,
+                            ...(p.settings || {})
+                        },
+                        updatedAt: p.updatedAt || Date.now()
+                    };
+                    saveLocal();
+                    renderAll();
+                    isApplyingRemote = false;
+                    setSyncStatus('online', 'Sincronizado en tiempo real');
+                    if (notify) showToast('Actualizado desde la nube', 'info');
+                } else {
+                    await persistState(notify);
+                }
+            } catch (err) {
+                console.error(err);
+                setSyncStatus('error', 'Error de conexión (modo local)');
+                if (notify) showToast('No se pudo conectar con Supabase', 'error');
+            }
+        }
+
+        function subscribeRealtime() {
+            supabaseClient
+                .channel('vapecontrol-rt')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: TABLE_NAME },
+                    (payload) => {
+                        const row = payload.new;
+                        if (row && row.payload && (row.payload.updatedAt || 0) > (window.appState.updatedAt || 0)) {
+                            cloudRowId = row.id;
+                            const p = row.payload;
+                            isApplyingRemote = true;
+                            window.appState = {
+                                ...window.appState,
+                                products: Array.isArray(p.products) ? p.products : [],
+                                sales: Array.isArray(p.sales) ? p.sales : [],
+                                settings: {
+                                    yoName: 'Carlos',
+                                    compaName: 'Luis',
+                                    yoInvested: 0,
+                                    compaInvested: 0,
+                                    ...(p.settings || {})
+                                },
+                                updatedAt: p.updatedAt || Date.now()
+                            };
+                            saveLocal();
+                            renderAll();
+                            isApplyingRemote = false;
+                            setSyncStatus('online', 'Sincronizado en tiempo real');
+                            showToast('Cambio sincronizado desde otro dispositivo', 'info');
+                        }
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') setSyncStatus('online', 'Sincronizado en tiempo real');
+                });
+        }
+
+        function applyPartnerNamesToUI() {
+            const { yoName, compaName } = getPartnerNames();
+            document.getElementById('yo-initials-badge').textContent = computePartnerInitials(yoName, 'S1');
+            document.getElementById('compa-initials-badge').textContent = computePartnerInitials(compaName, 'S2');
+            document.getElementById('yo-box-title').textContent = `Caja de ${yoName}`;
+            document.getElementById('compa-box-title').textContent = `Caja de ${compaName}`;
+            document.getElementById('sale-yo-name').textContent = yoName;
+            document.getElementById('sale-compa-name').textContent = compaName;
+            document.getElementById('settle-yo-name').textContent = yoName;
+            document.getElementById('settle-compa-name').textContent = compaName;
+            document.getElementById('label-inv-yo').textContent = `Inversión aportada por ${yoName} ($)`;
+            document.getElementById('label-inv-compa').textContent = `Inversión aportada por ${compaName} ($)`;
+            document.getElementById('corte-yo-label').textContent = yoName.toUpperCase();
+            document.getElementById('corte-compa-label').textContent = compaName.toUpperCase();
+        }
+
+        function calculateSummary() {
+            let totalSales = 0;
+            let totalProfit = 0;
+            let cashCollected = 0;
+            let cashEfec = 0;
+            let cashTransf = 0;
+            let pendingDebt = 0;
+            let debtCount = 0;
+            let yoCash = 0;
+            let compaCash = 0;
+            let yoCount = 0;
+            let compaCount = 0;
+            let costSoldCollected = 0;
+
+            window.appState.sales.forEach((s) => {
+                const total = Number(s.total) || 0;
+                const cost = (Number(s.cost) || 0) * (Number(s.qty) || 1);
+                const profit = total - cost;
+                totalSales += total;
+                totalProfit += profit;
+
+                if (s.status === 'FIADO') {
+                    pendingDebt += total;
+                    debtCount += 1;
+                } else {
+                    cashCollected += total;
+                    costSoldCollected += cost;
+                    if (s.payment === 'TRANSFERENCIA') cashTransf += total;
+                    else cashEfec += total;
+
+                    if (s.partner === 'COMPA') {
+                        compaCash += total;
+                        compaCount += 1;
+                    } else {
+                        yoCash += total;
+                        yoCount += 1;
+                    }
+                }
+            });
+
+            let stockValue = 0;
+            let stockUnits = 0;
+            window.appState.products.forEach((p) => {
+                const qty = Number(p.stock) || 0;
+                stockUnits += qty;
+                stockValue += qty * (Number(p.cost) || 0);
+            });
+
+            return {
+                totalSales,
+                totalProfit,
+                cashCollected,
+                cashEfec,
+                cashTransf,
+                pendingDebt,
+                debtCount,
+                stockValue,
+                stockUnits,
+                yoCash,
+                compaCash,
+                yoCount,
+                compaCount,
+                costSoldCollected
+            };
+        }
+
+        function renderAll() {
+            applyPartnerNamesToUI();
+            const sum = calculateSummary();
+
+            document.getElementById('kpi-net-profit').textContent = formatMoney(sum.totalProfit);
+            document.getElementById('kpi-total-sales').textContent = `Ventas Totales: ${formatMoney(sum.totalSales)}`;
+            document.getElementById('kpi-cash-collected').textContent = formatMoney(sum.cashCollected);
+            document.getElementById('kpi-cash-breakdown').textContent = `Efec: ${formatMoney(sum.cashEfec)} • Transf: ${formatMoney(sum.cashTransf)}`;
+            document.getElementById('kpi-pending-debt').textContent = formatMoney(sum.pendingDebt);
+            document.getElementById('kpi-debt-count').textContent = `${sum.debtCount} ${sum.debtCount === 1 ? 'cliente pendiente' : 'clientes pendientes'}`;
+            document.getElementById('kpi-active-stock-value').textContent = formatMoney(sum.stockValue);
+            document.getElementById('kpi-stock-units').textContent = `${sum.stockUnits} ${sum.stockUnits === 1 ? 'vape disponible' : 'vapes disponibles'}`;
+
+            document.getElementById('yo-invested-display').textContent = formatMoney(window.appState.settings.yoInvested || 0);
+            document.getElementById('compa-invested-display').textContent = formatMoney(window.appState.settings.compaInvested || 0);
+            document.getElementById('yo-cash-hand').textContent = formatMoney(sum.yoCash);
+            document.getElementById('compa-cash-hand').textContent = formatMoney(sum.compaCash);
+            document.getElementById('yo-sales-count').textContent = `${sum.yoCount} ventas cobradas`;
+            document.getElementById('compa-sales-count').textContent = `${sum.compaCount} ventas cobradas`;
+
+            document.getElementById('badge-inventory-count').textContent = sum.stockUnits;
+            document.getElementById('pill-debt-counter').textContent = sum.debtCount;
+            const badgeDebts = document.getElementById('badge-debts-count');
+            if (sum.debtCount > 0) {
+                badgeDebts.textContent = `${sum.debtCount} fiados`;
+                badgeDebts.classList.remove('hidden');
+            } else {
+                badgeDebts.classList.add('hidden');
+            }
+
+            renderInventory();
+            renderMovements();
+        }
+
+        function switchTab(tab) {
+            window.appState.currentTab = tab;
+            const isInv = tab === 'inventory';
+            document.getElementById('section-inventory').classList.toggle('hidden', !isInv);
+            document.getElementById('section-movements').classList.toggle('hidden', isInv);
+            document.getElementById('tab-inventory').className = isInv
+                ? 'tab-btn active-tab py-3 px-2 border-b-2 border-cyber-neon text-cyber-neon font-bold text-sm flex items-center gap-2 whitespace-nowrap transition'
+                : 'tab-btn py-3 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap transition';
+            document.getElementById('tab-movements').className = !isInv
+                ? 'tab-btn active-tab py-3 px-2 border-b-2 border-cyber-neon text-cyber-neon font-bold text-sm flex items-center gap-2 whitespace-nowrap transition'
+                : 'tab-btn py-3 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap transition';
+        }
+
+        function renderInventory() {
+            const brandSelect = document.getElementById('filter-brand');
+            const prevBrand = brandSelect.value;
+            const brands = [...new Set(window.appState.products.map((p) => (p.brand || '').trim()).filter(Boolean))].sort();
+            brandSelect.innerHTML = '<option value="ALL">Todas las marcas</option>' + brands.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+            if ([...brandSelect.options].some((o) => o.value === prevBrand)) brandSelect.value = prevBrand;
+
+            const q = (document.getElementById('search-inventory').value || '').toLowerCase().trim();
+            const brandFilter = brandSelect.value;
+            const stockFilter = document.getElementById('filter-stock').value;
+
+            const list = window.appState.products.filter((p) => {
+                const stock = Number(p.stock) || 0;
+                const matchText = !q || (p.brand || '').toLowerCase().includes(q) || (p.flavor || '').toLowerCase().includes(q) || (p.puffs || '').toLowerCase().includes(q);
+                const matchBrand = brandFilter === 'ALL' || (p.brand || '').trim() === brandFilter;
+                let matchStock = true;
+                if (stockFilter === 'AVAILABLE') matchStock = stock > 0;
+                if (stockFilter === 'LOW') matchStock = stock > 0 && stock <= 2;
+                if (stockFilter === 'OUT') matchStock = stock <= 0;
+                return matchText && matchBrand && matchStock;
+            });
+
+            const grid = document.getElementById('inventory-grid');
+            const empty = document.getElementById('inventory-empty');
+
+            if (list.length === 0) {
+                grid.innerHTML = '';
+                empty.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            }
+
+            empty.classList.add('hidden');
+            grid.innerHTML = list.map((p) => {
+                const stock = Number(p.stock) || 0;
+                const profit = (Number(p.price) || 0) - (Number(p.cost) || 0);
+                let badge = 'bg-cyber-neonDim text-cyber-neon border-cyber-neon/30';
+                let label = `${stock} en stock`;
+                if (stock === 0) {
+                    badge = 'bg-red-500/15 text-red-400 border-red-500/30';
+                    label = 'Agotado';
+                } else if (stock <= 2) {
+                    badge = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+                    label = `Quedan ${stock}`;
+                }
+
+                return `
+                    <div class="bg-cyber-card border border-cyber-border hover:border-gray-600 rounded-2xl p-4 flex flex-col justify-between transition">
+                        <div>
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                                <span class="text-[11px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyber-bg border border-cyber-border text-gray-300">${escapeHtml(p.brand)}</span>
+                                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${badge}">${label}</span>
+                            </div>
+                            <h3 class="font-bold text-white text-base leading-snug">${escapeHtml(p.flavor)}</h3>
+                            ${p.puffs ? `<p class="text-xs text-gray-400 mt-0.5">${escapeHtml(p.puffs)}</p>` : ''}
+                            <div class="mt-3 pt-3 border-t border-cyber-border/70 grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <span class="text-gray-400 block">Venta</span>
+                                    <span class="font-mono font-bold text-white text-sm">${formatMoney(p.price)}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-gray-400 block">Ganancia c/u</span>
+                                    <span class="font-mono font-bold ${profit >= 0 ? 'text-cyber-neon' : 'text-red-400'} text-sm">${formatMoney(profit)}</span>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-gray-500 font-mono mt-1">Costo: ${formatMoney(p.cost)}</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-cyber-border/70 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="adjustStock('${p.id}', -1)" class="w-8 h-8 rounded-lg bg-cyber-bg hover:bg-gray-800 border border-cyber-border flex items-center justify-center text-gray-300 font-bold">-</button>
+                                <button type="button" onclick="adjustStock('${p.id}', 1)" class="w-8 h-8 rounded-lg bg-cyber-bg hover:bg-gray-800 border border-cyber-border flex items-center justify-center text-cyber-neon font-bold">+</button>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="openSaleModal('${p.id}')" ${stock <= 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-cyber-neon hover:bg-[#00e65c] disabled:opacity-40 disabled:pointer-events-none text-black font-bold text-xs transition">Vender</button>
+                                <button type="button" onclick="openProductModal('${p.id}')" class="p-1.5 rounded-lg bg-cyber-bg hover:bg-gray-800 border border-cyber-border text-gray-400 hover:text-white"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                                <button type="button" onclick="deleteProduct('${p.id}')" class="p-1.5 rounded-lg bg-cyber-bg hover:bg-red-500/20 border border-cyber-border text-gray-400 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function setMovementFilter(filter) {
+            window.appState.movementFilter = filter;
+            ['ALL', 'PAID', 'FIADO'].forEach((f) => {
+                const btn = document.getElementById(`mov-filter-${f}`);
+                btn.className = f === filter
+                    ? 'mov-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-cyber-neon text-black transition flex items-center gap-1.5'
+                    : 'mov-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition flex items-center gap-1.5';
+            });
+            renderMovements();
+        }
+
+        function renderMovements() {
+            const q = (document.getElementById('search-movements').value || '').toLowerCase().trim();
+            const filter = window.appState.movementFilter || 'ALL';
+            const listEl = document.getElementById('movements-list');
+            const emptyEl = document.getElementById('movements-empty');
+
+            const filtered = window.appState.sales.filter((s) => {
+                const isFiado = s.status === 'FIADO';
+                if (filter === 'FIADO' && !isFiado) return false;
+                if (filter === 'PAID' && isFiado) return false;
+                if (!q) return true;
+                const { yoName, compaName } = getPartnerNames();
+                const partnerText = s.partner === 'COMPA' ? compaName : yoName;
+                return (s.productName || '').toLowerCase().includes(q) ||
+                    (s.customer || '').toLowerCase().includes(q) ||
+                    partnerText.toLowerCase().includes(q);
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            listEl.innerHTML = filtered.map((s) => {
+                const isFiado = s.status === 'FIADO';
+                const { yoName, compaName } = getPartnerNames();
+                const partnerLabel = s.partner === 'COMPA' ? compaName : yoName;
+                const partnerClass = s.partner === 'COMPA'
+                    ? 'text-cyber-purple border-cyber-purple/40 bg-cyber-purpleDim'
+                    : 'text-cyber-cyan border-cyber-cyan/40 bg-cyber-cyanDim';
+                const profit = (Number(s.total) || 0) - ((Number(s.cost) || 0) * (Number(s.qty) || 1));
+                const dateLabel = s.date ? new Date(s.date).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+                return `
+                    <div class="bg-cyber-card border ${isFiado ? 'border-amber-500/40' : 'border-cyber-border'} rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="font-bold text-white text-sm">${escapeHtml(s.productName)}</span>
+                                <span class="text-xs font-mono text-gray-400">x${s.qty || 1}</span>
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${partnerClass}">${escapeHtml(partnerLabel)}</span>
+                                ${isFiado
+                                    ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">FIADO • ${escapeHtml(s.customer || 'Cliente')}</span>`
+                                    : `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">${escapeHtml(s.payment || 'EFECTIVO')}</span>`
+                                }
+                            </div>
+                            <p class="text-xs text-gray-400 font-mono">
+                                ${dateLabel}${s.customer && !isFiado ? ` • Cliente: ${escapeHtml(s.customer)}` : ''} • Ganancia: <span class="${profit >= 0 ? 'text-cyber-neon' : 'text-red-400'}">${formatMoney(profit)}</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between sm:justify-end gap-2.5">
+                            <span class="text-lg font-extrabold font-mono tabular-nums ${isFiado ? 'text-amber-400' : 'text-white'}">${formatMoney(s.total)}</span>
+                            ${isFiado ? `<button type="button" onclick="openSettleDebtModal('${s.id}')" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition">Cobrar</button>` : ''}
+                            <button type="button" onclick="deleteSale('${s.id}')" class="p-2 rounded-xl bg-cyber-bg hover:bg-red-500/20 border border-cyber-border text-gray-400 hover:text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function openProductModal(id = null) {
+            document.getElementById('form-product').reset();
+            document.getElementById('prod-id').value = '';
+            if (id) {
+                const p = window.appState.products.find((item) => item.id === id);
+                if (!p) return;
+                document.getElementById('modal-product-title').innerHTML = '<i data-lucide="pencil" class="w-5 h-5 text-cyber-neon"></i> Editar Vape';
+                document.getElementById('prod-id').value = p.id;
+                document.getElementById('prod-brand').value = p.brand || '';
+                document.getElementById('prod-puffs').value = p.puffs || '';
+                document.getElementById('prod-flavor').value = p.flavor || '';
+                document.getElementById('prod-cost').value = p.cost ?? 0;
+                document.getElementById('prod-price').value = p.price ?? 0;
+                document.getElementById('prod-stock').value = p.stock ?? 0;
+            } else {
+                document.getElementById('modal-product-title').innerHTML = '<i data-lucide="plus-circle" class="w-5 h-5 text-cyber-neon"></i> Agregar Nuevo Vape';
+            }
+            openModal('modal-product');
+        }
+
+        async function handleSaveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const brand = document.getElementById('prod-brand').value.trim();
+            const puffs = document.getElementById('prod-puffs').value.trim();
+            const flavor = document.getElementById('prod-flavor').value.trim();
+            const cost = parseFloat(document.getElementById('prod-cost').value) || 0;
+            const price = parseFloat(document.getElementById('prod-price').value) || 0;
+            const stock = parseInt(document.getElementById('prod-stock').value, 10) || 0;
+
+            if (id) {
+                const idx = window.appState.products.findIndex((item) => item.id === id);
+                if (idx !== -1) window.appState.products[idx] = { ...window.appState.products[idx], brand, puffs, flavor, cost, price, stock };
+                showToast('Vape actualizado');
+            } else {
+                window.appState.products.unshift({
+                    id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    brand,
+                    puffs,
+                    flavor,
+                    cost,
+                    price,
+                    stock
+                });
+                showToast('Vape agregado al inventario');
+            }
+            closeModal('modal-product');
+            await persistState();
+        }
+
+        async function adjustStock(id, delta) {
+            const p = window.appState.products.find((item) => item.id === id);
+            if (!p) return;
+            const next = (Number(p.stock) || 0) + delta;
+            if (next < 0) return;
+            p.stock = next;
+            await persistState();
+        }
+
+        function deleteProduct(id) {
+            askConfirm('Eliminar vape', '¿Seguro que deseas eliminar este modelo del inventario?', async () => {
+                window.appState.products = window.appState.products.filter((item) => item.id !== id);
+                showToast('Vape eliminado');
+                await persistState();
+            });
+        }
+
+        function openSaleModal(preselectId = null) {
+            applyPartnerNamesToUI();
+            const select = document.getElementById('sale-product-id');
+            const available = window.appState.products.filter((p) => (Number(p.stock) || 0) > 0);
+            select.innerHTML = '<option value="">-- Elige un vape con stock --</option>' +
+                available.map((p) => `<option value="${p.id}">${escapeHtml(p.brand)} - ${escapeHtml(p.flavor)} (${p.stock} disp. • ${formatMoney(p.price)})</option>`).join('');
+
+            document.getElementById('sale-qty').value = 1;
+            document.getElementById('sale-total-price').value = '';
+            document.getElementById('sale-customer').value = '';
+            document.querySelector('input[name="sale-payment"][value="EFECTIVO"]').checked = true;
+            toggleCustomerField();
+
+            if (preselectId && available.some((p) => p.id === preselectId)) select.value = preselectId;
+            else if (available.length === 1) select.value = available[0].id;
+
+            onSaleProductChange();
+            openModal('modal-sale');
+        }
+
+        function onSaleProductChange() {
+            const prodId = document.getElementById('sale-product-id').value;
+            const prod = window.appState.products.find((p) => p.id === prodId);
+            const qtyInput = document.getElementById('sale-qty');
+            const hint = document.getElementById('sale-stock-hint');
+
+            if (!prod) {
+                hint.textContent = '';
+                document.getElementById('sale-total-price').value = '';
+                updateSaleProfitPreview();
+                return;
+            }
+            const maxStock = Number(prod.stock) || 0;
+            qtyInput.max = maxStock;
+            if (Number(qtyInput.value) > maxStock) qtyInput.value = Math.max(1, maxStock);
+            hint.textContent = `Stock: ${maxStock} pz • Sugerido c/u: ${formatMoney(prod.price)}`;
+            updateSaleSuggestedTotal();
+        }
+
+        function updateSaleSuggestedTotal() {
+            const prodId = document.getElementById('sale-product-id').value;
+            const prod = window.appState.products.find((p) => p.id === prodId);
+            const qty = Math.max(1, parseInt(document.getElementById('sale-qty').value, 10) || 1);
+            if (prod) document.getElementById('sale-total-price').value = (Number(prod.price) || 0) * qty;
+            updateSaleProfitPreview();
+        }
+
+        function updateSaleProfitPreview() {
+            const prodId = document.getElementById('sale-product-id').value;
+            const prod = window.appState.products.find((p) => p.id === prodId);
+            const qty = Math.max(1, parseInt(document.getElementById('sale-qty').value, 10) || 1);
+            const total = parseFloat(document.getElementById('sale-total-price').value) || 0;
+            const cost = prod ? (Number(prod.cost) || 0) * qty : 0;
+            const profit = total - cost;
+            const el = document.getElementById('sale-profit-preview');
+            el.textContent = formatMoney(profit);
+            el.className = `font-mono font-bold ${profit >= 0 ? 'text-cyber-neon' : 'text-red-400'}`;
+        }
+
+        function toggleCustomerField() {
+            const payment = document.querySelector('input[name="sale-payment"]:checked').value;
+            const label = document.getElementById('sale-customer-label');
+            const input = document.getElementById('sale-customer');
+            if (payment === 'FIADO') {
+                label.textContent = 'Nombre del Cliente (Obligatorio en Fiado) *';
+                label.className = 'block text-xs font-semibold text-amber-400 mb-1';
+                input.required = true;
+            } else {
+                label.textContent = 'Nombre del Cliente (Opcional)';
+                label.className = 'block text-xs font-semibold text-gray-400 mb-1';
+                input.required = false;
+            }
+        }
+
+        async function handleRegisterSale(e) {
+            e.preventDefault();
+            const prodId = document.getElementById('sale-product-id').value;
+            const prod = window.appState.products.find((p) => p.id === prodId);
+            if (!prod) {
+                showToast('Selecciona un vape', 'error');
+                return;
+            }
+
+            const qty = Math.max(1, parseInt(document.getElementById('sale-qty').value, 10) || 1);
+            const stock = Number(prod.stock) || 0;
+            if (qty > stock) {
+                showToast(`Solo quedan ${stock} piezas`, 'error');
+                return;
+            }
+
+            const total = parseFloat(document.getElementById('sale-total-price').value) || 0;
+            const partner = document.querySelector('input[name="sale-partner"]:checked').value;
+            const payment = document.querySelector('input[name="sale-payment"]:checked').value;
+            const customer = document.getElementById('sale-customer').value.trim();
+
+            if (payment === 'FIADO' && !customer) {
+                showToast('Ingresa el nombre del cliente para el fiado', 'error');
+                return;
+            }
+
+            prod.stock = stock - qty;
+            window.appState.sales.unshift({
+                id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                productId: prod.id,
+                productName: `${prod.brand} ${prod.flavor}`.trim(),
+                qty,
+                cost: Number(prod.cost) || 0,
+                total,
+                partner,
+                payment,
+                status: payment === 'FIADO' ? 'FIADO' : 'PAGADO',
+                customer,
+                date: new Date().toISOString()
+            });
+
+            closeModal('modal-sale');
+            showToast(payment === 'FIADO' ? `Fiado registrado a ${customer}` : 'Venta registrada');
+            await persistState();
+        }
+
+        function openSettleDebtModal(saleId) {
+            const s = window.appState.sales.find((item) => item.id === saleId);
+            if (!s) return;
+            applyPartnerNamesToUI();
+            document.getElementById('settle-sale-id').value = s.id;
+            document.getElementById('settle-customer-name').textContent = s.customer || 'Cliente';
+            document.getElementById('settle-amount-display').textContent = formatMoney(s.total);
+            document.querySelector(`input[name="settle-partner"][value="${s.partner === 'COMPA' ? 'COMPA' : 'YO'}"]`).checked = true;
+            document.querySelector('input[name="settle-method"][value="EFECTIVO"]').checked = true;
+            openModal('modal-settle-debt');
+        }
+
+        async function handleSettleDebt(e) {
+            e.preventDefault();
+            const id = document.getElementById('settle-sale-id').value;
+            const s = window.appState.sales.find((item) => item.id === id);
+            if (!s) return;
+
+            s.partner = document.querySelector('input[name="settle-partner"]:checked').value;
+            s.payment = document.querySelector('input[name="settle-method"]:checked').value;
+            s.status = 'PAGADO';
+            s.paidDate = new Date().toISOString();
+
+            closeModal('modal-settle-debt');
+            showToast('Fiado cobrado y sumado a caja');
+            await persistState();
+        }
+
+        function deleteSale(id) {
+            askConfirm('Eliminar registro', '¿Borrar esta venta/fiado del historial?', async () => {
+                window.appState.sales = window.appState.sales.filter((item) => item.id !== id);
+                showToast('Registro eliminado');
+                await persistState();
+            });
+        }
+
+        function openPartnerNamesModal(focusTarget = '') {
+            const { yoName, compaName } = getPartnerNames();
+            const yoInput = document.getElementById('input-yo-name');
+            const compaInput = document.getElementById('input-compa-name');
+            yoInput.value = yoName;
+            compaInput.value = compaName;
+            openModal('modal-partner-names');
+            setTimeout(() => {
+                if (focusTarget === 'COMPA') {
+                    compaInput.focus();
+                    compaInput.select();
+                } else {
+                    yoInput.focus();
+                    yoInput.select();
+                }
+            }, 40);
+        }
+
+        async function handleSavePartnerNames(e) {
+            e.preventDefault();
+            const yoName = document.getElementById('input-yo-name').value.trim() || 'Socio 1';
+            const compaName = document.getElementById('input-compa-name').value.trim() || 'Socio 2';
+            window.appState.settings.yoName = yoName;
+            window.appState.settings.compaName = compaName;
+            closeModal('modal-partner-names');
+            showToast('Nombres sincronizados');
+            await persistState();
+        }
+
+        function openInvestmentModal() {
+            applyPartnerNamesToUI();
+            document.getElementById('input-yo-invested').value = window.appState.settings.yoInvested || 0;
+            document.getElementById('input-compa-invested').value = window.appState.settings.compaInvested || 0;
+            openModal('modal-investment');
+        }
+
+        async function handleSaveInvestment(e) {
+            e.preventDefault();
+            window.appState.settings.yoInvested = parseFloat(document.getElementById('input-yo-invested').value) || 0;
+            window.appState.settings.compaInvested = parseFloat(document.getElementById('input-compa-invested').value) || 0;
+            closeModal('modal-investment');
+            showToast('Inversión actualizada');
+            await persistState();
+        }
+
+        function openCorteModal() {
+            applyPartnerNamesToUI();
+            const sum = calculateSummary();
+            const { yoName, compaName } = getPartnerNames();
+            const collectedProfit = sum.cashCollected - sum.costSoldCollected;
+            const halfProfit = collectedProfit / 2;
+
+            const yoInv = Number(window.appState.settings.yoInvested) || 0;
+            const compaInv = Number(window.appState.settings.compaInvested) || 0;
+
+            const yoTarget = yoInv + halfProfit;
+            const compaTarget = compaInv + halfProfit;
+
+            const yoDiff = sum.yoCash - yoTarget;
+
+            document.getElementById('corte-total-collected').textContent = formatMoney(sum.cashCollected);
+            document.getElementById('corte-cost-recovered').textContent = formatMoney(sum.costSoldCollected);
+            document.getElementById('corte-net-profit').textContent = formatMoney(collectedProfit);
+            document.getElementById('corte-half-profit').textContent = formatMoney(halfProfit);
+
+            document.getElementById('corte-yo-has').textContent = formatMoney(sum.yoCash);
+            document.getElementById('corte-yo-inv').textContent = formatMoney(yoInv);
+            document.getElementById('corte-yo-target').textContent = formatMoney(yoTarget);
+
+            document.getElementById('corte-compa-has').textContent = formatMoney(sum.compaCash);
+            document.getElementById('corte-compa-inv').textContent = formatMoney(compaInv);
+            document.getElementById('corte-compa-target').textContent = formatMoney(compaTarget);
+
+            const verdictText = document.getElementById('corte-verdict-text');
+            const verdictSub = document.getElementById('corte-verdict-sub');
+
+            if (Math.abs(yoDiff) < 0.01) {
+                verdictText.textContent = '¡Están tablas!';
+                verdictSub.textContent = 'Ninguno debe pasar dinero al otro.';
+            } else if (yoDiff > 0) {
+                verdictText.textContent = `${yoName} pasa ${formatMoney(yoDiff)} a ${compaName}`;
+                verdictSub.textContent = `Con ese ajuste ambos quedan con su inversión + 50% de ganancia cobrada.`;
+            } else {
+                verdictText.textContent = `${compaName} pasa ${formatMoney(Math.abs(yoDiff))} a ${yoName}`;
+                verdictSub.textContent = `Con ese ajuste ambos quedan con su inversión + 50% de ganancia cobrada.`;
+            }
+
+            openModal('modal-corte');
+        }
+
+        function openDataModal() {
+            openModal('modal-data');
+        }
+
+        function exportDataJSON() {
+            const blob = new Blob([JSON.stringify(window.appState, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vapecontrol-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Respaldo JSON descargado');
+        }
+
+        function exportSalesCSV() {
+            const { yoName, compaName } = getPartnerNames();
+            const headers = ['Fecha', 'Producto', 'Cantidad', 'Total', 'Ganancia', 'Socio', 'Pago', 'Estado', 'Cliente'];
+            const rows = window.appState.sales.map((s) => {
+                const profit = (Number(s.total) || 0) - ((Number(s.cost) || 0) * (Number(s.qty) || 1));
+                const partner = s.partner === 'COMPA' ? compaName : yoName;
+                return [
+                    s.date || '',
+                    `"${(s.productName || '').replace(/"/g, '""')}"`,
+                    s.qty || 1,
+                    s.total || 0,
+                    profit,
+                    `"${partner.replace(/"/g, '""')}"`,
+                    s.payment || '',
+                    s.status || '',
+                    `"${(s.customer || '').replace(/"/g, '""')}"`
+                ].join(',');
+            });
+            const csv = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ventas-vapecontrol-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Ventas exportadas a CSV');
+        }
+
+        function handleResetDatabase() {
+            askConfirm('Reiniciar todo el negocio', 'Esto borrará inventario, ventas y fiados tanto local como en Supabase. ¿Continuar?', async () => {
+                const { yoName, compaName } = getPartnerNames();
+                window.appState.products = [];
+                window.appState.sales = [];
+                window.appState.settings = { yoName, compaName, yoInvested: 0, compaInvested: 0 };
+                closeModal('modal-data');
+                showToast('Datos reiniciados');
+                await persistState();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadLocal();
+            renderAll();
+            pullStateFromCloud(false);
+            subscribeRealtime();
+        });
+    </script>
+</body>
+</html>
